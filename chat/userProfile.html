@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="userProfile.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>User Profile</h1>
+            <a href="homepage.html" class="nav-link">Back to Home</a>
+        </header>
+
+        <main>
+            <div class="profile-info">
+                <img id="avatar" src="" alt="User avatar" class="avatar">
+                <h2 id="username"></h2>
+                <p id="email"></p>
+                <p id="joinDate"></p>
+                <p id="bio"></p>
+                <div class="follow-stats">
+                    <span id="followersCount">0 followers</span>
+                    <span id="followingCount">0 following</span>
+                </div>
+                <button id="followButton" class="button">Follow</button>
+                <button id="editProfileButton" class="button" style="display: none;">Edit Profile</button>
+                <div id="editProfileSection" style="display: none;">
+                    <input type="text" id="editUsername" placeholder="New username">
+                    <textarea id="editBio" placeholder="Add a bio"></textarea>
+                    <input type="file" id="editProfilePicture" accept="image/*">
+                    <button id="saveProfileChanges" class="button">Save Changes</button>
+                </div>
+            </div>
+
+            <div class="user-posts">
+                <h3>User Posts</h3>
+                <div id="postsContainer" class="posts-grid"></div>
+            </div>
+        </main>
+
+        <footer>
+            © 2024 Social. All rights reserved.
+        </footer>
+
+        <!-- Upload Modal -->
+        <div id="uploadModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Upload Media</h2>
+                <input type="file" id="mediaFile" accept="image/*,video/*">
+                <textarea id="mediaCaption" placeholder="Add a caption..."></textarea>
+                <button id="uploadButton" class="button">Upload</button>
+            </div>
+        </div>
+
+        <!-- Upload Button -->
+        <button id="uploadBtn" class="upload-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 4V16M12 16L8 12M12 16L16 12M5 20H19C20.1046 20 21 19.1046 21 18V6C21 4.89543 20.1046 4 19 4H5C3.89543 4 3 4.89543 3 6V18C3 19.1046 3.89543 20 5 20Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+    <!-- Your JavaScript file -->
+    <script src="userProfile.js"></script>
+</body>
+</html>
