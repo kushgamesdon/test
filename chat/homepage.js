@@ -124,31 +124,46 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const performSearch = () => {
-    const searchTerm = searchInput.value.toLowerCase();
+    const searchTerm = searchInput.value.trim().toLowerCase();
     searchResults.innerHTML = "";
 
-    if (searchTerm.trim() === "") {
+    if (searchTerm === "") {
       return;
     }
 
+    // Normalize the search term for case-insensitive comparison
     db.collection("users")
-      .where("username", ">=", searchTerm)
-      .where("username", "<=", searchTerm + "\uf8ff")
       .get()
       .then((querySnapshot) => {
         if (querySnapshot.empty) {
           searchResults.innerHTML = "<p>No users found. Please try again.</p>";
+          return;
+        }
+
+        const results = [];
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          if (userData.username.toLowerCase().includes(searchTerm)) {
+            results.push({
+              id: doc.id,
+              username: userData.username,
+              avatarUrl: userData.avatarUrl || "https://via.placeholder.com/32"
+            });
+          }
+        });
+
+        if (results.length === 0) {
+          searchResults.innerHTML = "<p>No users found. Please try again.</p>";
         } else {
-          querySnapshot.forEach((doc) => {
-            const userData = doc.data();
+          results.forEach((user) => {
             const userDiv = document.createElement("div");
             userDiv.className = "user-result";
             userDiv.innerHTML = `
-              <img src="${userData.avatarUrl || "https://via.placeholder.com/32"}" alt="${userData.username} avatar" class="avatar">
-              <span>${userData.username}</span>
+              <img src="${user.avatarUrl}" alt="${user.username} avatar" class="avatar">
+              <span>${user.username}</span>
             `;
             userDiv.addEventListener("click", () => {
-              window.location.href = `userProfile.html?uid=${doc.id}`;
+              window.location.href = `userProfile.html?uid=${user.id}`;
             });
             searchResults.appendChild(userDiv);
           });
