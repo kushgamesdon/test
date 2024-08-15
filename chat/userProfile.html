@@ -10,7 +10,12 @@
     <div class="container">
         <header>
             <h1>User Profile</h1>
-            <a href="homepage.html" class="nav-link">Back to Home</a>
+            <nav class="navbar">
+                <a href="homepage.html" class="nav-link">Home</a>
+                <a href="#" class="nav-link">Messages</a>
+                <a href="#" class="nav-link" id="notificationsLink">Notifications</a>
+                <a href="#" class="nav-link" id="settingsLink">Settings</a>
+            </nav>
         </header>
 
         <main>
@@ -21,8 +26,8 @@
                 <p id="joinDate"></p>
                 <p id="bio"></p>
                 <div class="follow-stats">
-                    <span id="followersCount">0 followers</span>
-                    <span id="followingCount">0 following</span>
+                    <span id="followersCount">0</span> Followers
+                    <span id="followingCount">0</span> Following
                 </div>
                 <button id="followButton" class="button">Follow</button>
                 <button id="editProfileButton" class="button" style="display: none;">Edit Profile</button>
@@ -54,6 +59,40 @@
                 <button id="uploadButton" class="button">Upload</button>
             </div>
         </div>
+
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Settings</h2>
+                <div class="settings-options">
+                    <label>
+                        <input type="checkbox" id="darkModeToggle">
+                        Dark Mode
+                    </label>
+                    <label>
+                        <input type="checkbox" id="notificationsToggle">
+                        Enable Notifications
+                    </label>
+                    <label>
+                        Language:
+                        <select id="languageSelect">
+                            <option value="en">English</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Français</option>
+                        </select>
+                    </label>
+                </div>
+                <button id="saveSettings" class="button">Save Settings</button>
+            </div>
+        </div>
+
+        <div id="notificationsModal" class="modal">
+            <div class="modal-content">
+              <span class="close">&times;</span>
+              <h2>Notifications</h2>
+              <div id="notificationsList"></div>
+            </div>
+          </div>
 
         <!-- Upload Button -->
         <button id="uploadBtn" class="upload-button">
