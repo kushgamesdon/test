@@ -14,361 +14,524 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-document.addEventListener('DOMContentLoaded', function () {
+// DOM Element Selectors
+const selectors = {
+  username: document.getElementById("username"),
+  email: document.getElementById("email"),
+  joinDate: document.getElementById("joinDate"),
+  avatar: document.getElementById("avatar"),
+  bio: document.getElementById("bio"),
+  postsContainer: document.getElementById("postsContainer"),
+  followButton: document.getElementById("followButton"),
+  followersCount: document.getElementById("followersCount"),
+  followingCount: document.getElementById("followingCount"),
+  editProfileButton: document.getElementById("editProfileButton"),
+  editProfileSection: document.getElementById("editProfileSection"),
+  saveProfileChanges: document.getElementById("saveProfileChanges"),
+  editUsername: document.getElementById("editUsername"),
+  editBio: document.getElementById("editBio"),
+  editProfilePicture: document.getElementById("editProfilePicture"),
+  uploadBtn: document.getElementById('uploadBtn'),
+  uploadModal: document.getElementById('uploadModal'),
+  closeModal: document.querySelector('.modal-content .close'),
+  uploadButton: document.getElementById('uploadButton'),
+  mediaFileInput: document.getElementById('mediaFile'),
+  mediaCaptionInput: document.getElementById('mediaCaption'),
+  settingsLink: document.getElementById('settingsLink'),
+  settingsModal: document.getElementById('settingsModal'),
+  closeSettingsModal: document.querySelector('#settingsModal .close'),
+  darkModeToggle: document.getElementById('darkModeToggle'),
+  notificationsToggle: document.getElementById('notificationsToggle'),
+  languageSelect: document.getElementById('languageSelect'),
+  saveSettingsButton: document.getElementById('saveSettings'),
+  notificationsLink: document.getElementById('notificationsLink'),
+  notificationsModal: document.getElementById('notificationsModal'),
+  closeNotificationsModal: document.querySelector('#notificationsModal .close'),
+  notificationsList: document.getElementById('notificationsList'),
+};
+
+// Utility function to update UI
+const updateUI = (element, value) => {
+  element.textContent = value;
+};
+
+document.addEventListener('DOMContentLoaded', async function () {
   const uid = new URLSearchParams(window.location.search).get("uid");
 
-  // Profile and post elements
-  const usernameElement = document.getElementById("username");
-  const emailElement = document.getElementById("email");
-  const joinDateElement = document.getElementById("joinDate");
-  const avatarElement = document.getElementById("avatar");
-  const bioElement = document.getElementById("bio");
-  const postsContainer = document.getElementById("postsContainer");
-  const followButton = document.getElementById("followButton");
-  const followersCountElement = document.getElementById("followersCount");
-  const followingCountElement = document.getElementById("followingCount");
-
-  // Edit profile elements
-  const editProfileButton = document.getElementById("editProfileButton");
-  const editProfileSection = document.getElementById("editProfileSection");
-  const saveProfileChanges = document.getElementById("saveProfileChanges");
-  const editUsername = document.getElementById("editUsername");
-  const editBio = document.getElementById("editBio");
-  const editProfilePicture = document.getElementById("editProfilePicture");
-
-  // Upload modal elements
-  const uploadBtn = document.getElementById('uploadBtn');
-  const uploadModal = document.getElementById('uploadModal');
-  const closeModal = document.querySelector('.modal-content .close');
-  const uploadButton = document.getElementById('uploadButton');
-  const mediaFileInput = document.getElementById('mediaFile');
-  const mediaCaptionInput = document.getElementById('mediaCaption');
-
-  // Handle file upload and caption submission
-  uploadButton.addEventListener('click', function () {
-    const file = mediaFileInput.files[0];
-    const caption = mediaCaptionInput.value;
-
-    if (file) {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const storageRef = storage.ref();
-        const fileRef = storageRef.child('uploads/' + file.name);
-
-        fileRef.put(file).then((snapshot) => {
-          return snapshot.ref.getDownloadURL();
-        }).then((url) => {
-          // Save post under the current user in "users" collection
-          return db.collection('users').doc(currentUser.uid).collection('posts').add({
-            url: url,
-            caption: caption,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }).then(() => {
-          console.log('Post saved to Firestore');
-          mediaFileInput.value = '';
-          mediaCaptionInput.value = '';
-          uploadModal.style.display = 'none';
-          loadUserPosts(currentUser.uid); // Reload posts after upload
-        }).catch((error) => {
-          console.error('Error uploading file:', error);
-        });
-      } else {
-        console.error('No user is signed in');
-      }
-    } else {
-      alert('Please select a file.');
-    }
-  });
-
-  // Open the upload modal
-  uploadBtn.addEventListener('click', function () {
-    uploadModal.style.display = 'flex';
-  });
-
-  // Close the upload modal when close button is clicked
-  closeModal.addEventListener('click', function () {
-    uploadModal.style.display = 'none';
-  });
-
-  // Close the modal when clicking outside the modal content
-  window.addEventListener('click', function (event) {
-    if (event.target === uploadModal) {
-      uploadModal.style.display = 'none';
-    }
-  });
-
-  // Get the user ID from the URL
   if (uid) {
-    // Fetch user data
-    db.collection("users").doc(uid).get().then((doc) => {
-      if (doc.exists) {
-        const userData = doc.data();
-        usernameElement.textContent = userData.username || "No username";
-        emailElement.textContent = userData.email || "No email";
-        joinDateElement.textContent = `Joined: ${userData.createdAt ? new Date(userData.createdAt.toDate()).toLocaleDateString() : "Unknown"}`;
-        avatarElement.src = userData.avatarUrl || "https://via.placeholder.com/100";
-        bioElement.textContent = userData.bio || "No bio available";
+    try {
+      const userDoc = await db.collection("users").doc(uid).get();
+      if (!userDoc.exists) throw new Error("User not found");
 
-        // Update follow counts
-        updateFollowCounts(userData);
+      const userData = userDoc.data();
+      updateUI(selectors.username, userData.username || "No username");
+      updateUI(selectors.email, userData.email || "No email");
+      updateUI(selectors.joinDate, `Joined: ${userData.createdAt ? new Date(userData.createdAt.toDate()).toLocaleDateString() : "Unknown"}`);
+      selectors.avatar.src = userData.avatarUrl || "https://via.placeholder.com/100";
+      updateUI(selectors.bio, userData.bio || "No bio available");
 
-        // Check if the current user is viewing their own profile
-        auth.onAuthStateChanged((currentUser) => {
-          if (currentUser && currentUser.uid === uid) {
-            editProfileButton.style.display = "inline-block";
-            followButton.style.display = "none";
-          } else if (currentUser) {
-            setupFollowButton(currentUser, uid, userData);
-          }
-        });
+      updateFollowCounts(userData);
 
-        // Load user posts
-        loadUserPosts(uid);
+      const currentUser = await getCurrentUser();
 
-      } else {
-        console.log("User not found");
-        usernameElement.textContent = "User not found";
+      if (currentUser && currentUser.uid === uid) {
+        selectors.editProfileButton.style.display = "inline-block";
+        selectors.followButton.style.display = "none";
+      } else if (currentUser) {
+        setupFollowButton(currentUser, uid, userData);
       }
-    }).catch((error) => {
-      console.error("Error getting user document:", error);
-    });
+
+      console.log('Loading posts...');
+      await loadUserPosts(uid); // Load user posts, make sure this is called only once
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      updateUI(selectors.username, "User not found");
+    }
   } else {
     console.log("No user ID provided in the URL");
-    usernameElement.textContent = "Invalid user profile";
+    updateUI(selectors.username, "Invalid user profile");
   }
 
-  // Edit profile functionality
-  editProfileButton.addEventListener("click", () => {
-    editProfileSection.style.display = "block";
-    editProfileButton.style.display = "none";
+  // Load user settings
+  await loadSettings();
 
-    // Pre-fill the edit fields with current data
-    editUsername.value = usernameElement.textContent;
-    editBio.value = bioElement.textContent;
+  // Set up event listeners after everything is loaded
+  setupEventListeners();
+});
+
+async function getCurrentUser() {
+  return new Promise((resolve, reject) => {
+    auth.onAuthStateChanged(user => {
+      resolve(user);
+    }, reject);
+  });
+}
+
+async function uploadFile(file) {
+  const storageRef = storage.ref();
+  const fileRef = storageRef.child('uploads/' + file.name);
+  const snapshot = await fileRef.put(file);
+  return snapshot.ref.getDownloadURL();
+}
+
+async function savePost(currentUser, url, caption) {
+  try {
+    await db.collection('users').doc(currentUser.uid).collection('posts').add({
+      url: url,
+      caption: caption,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      likes: [], // Initialize the likes array
+    });
+    console.log('Post saved successfully.');
+  } catch (error) {
+    console.error('Error saving post:', error);
+  }
+}
+
+async function getPostData(userId, postId) {
+  const postRef = db.collection("users").doc(userId).collection("posts").doc(postId);
+  try {
+    const postDoc = await postRef.get();
+    if (postDoc.exists) {
+      const postData = postDoc.data();
+      console.log(`Post data for ID ${postId}: ${JSON.stringify(postData)}`);
+      return postData;
+    } else {
+      console.log(`Post with ID ${postId} does not exist.`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching post data for ID ${postId}:`, error);
+    return null;
+  }
+}
+
+function setupEventListeners() {
+  // Remove existing event listeners before adding new ones
+  selectors.uploadButton.removeEventListener('click', handleUploadClick);
+  selectors.uploadBtn.removeEventListener('click', handleUploadBtnClick);
+  selectors.closeModal.removeEventListener('click', handleCloseModalClick);
+
+  selectors.uploadButton.addEventListener('click', handleUploadClick);
+  selectors.uploadBtn.addEventListener('click', handleUploadBtnClick);
+  selectors.closeModal.addEventListener('click', handleCloseModalClick);
+}
+
+async function handleUploadClick() {
+  const file = selectors.mediaFileInput.files[0];
+  const caption = selectors.mediaCaptionInput.value;
+
+  if (file) {
+    try {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) throw new Error('No user is signed in');
+
+      const url = await uploadFile(file);
+      await savePost(currentUser, url, caption);
+
+      selectors.mediaFileInput.value = '';
+      selectors.mediaCaptionInput.value = '';
+      selectors.uploadModal.style.display = 'none';
+
+      console.log('Refreshing posts after upload...');
+      await loadUserPosts(currentUser.uid); // Refresh posts
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
+  } else {
+    alert('Please select a file.');
+  }
+}
+
+function handleUploadBtnClick() {
+  selectors.uploadModal.style.display = 'flex';
+}
+
+function handleCloseModalClick() {
+  selectors.uploadModal.style.display = 'none';
+}
+
+  selectors.editProfileButton.addEventListener("click", () => {
+    selectors.editProfileSection.style.display = "block";
+    selectors.editProfileButton.style.display = "none";
+    selectors.editUsername.value = selectors.username.textContent;
+    selectors.editBio.value = selectors.bio.textContent;
   });
 
-  saveProfileChanges.addEventListener("click", () => {
-    const newUsername = editUsername.value.trim();
-    const newBio = editBio.value.trim();
-    const newProfilePicture = editProfilePicture.files[0];
+  selectors.saveProfileChanges.addEventListener("click", async () => {
+    const newUsername = selectors.editUsername.value.trim();
+    const newBio = selectors.editBio.value.trim();
+    const newProfilePicture = selectors.editProfilePicture.files[0];
 
     if (newUsername) {
-      updateProfile(newUsername, newBio, newProfilePicture);
+      try {
+        await updateProfile(newUsername, newBio, newProfilePicture);
+      } catch (error) {
+        console.error('Error updating profile:', error);
+      }
     } else {
       alert("Username cannot be empty");
     }
   });
-});
 
-function updateFollowCounts(userData) {
-  const followersCountElement = document.getElementById("followersCount");
-  const followingCountElement = document.getElementById("followingCount");
+  // Settings Modal
+  selectors.settingsLink.addEventListener('click', () => {
+    selectors.settingsModal.style.display = 'flex';
+    loadSettings();
+  });
 
-  const followersCount = userData.followers ? userData.followers.length : 0;
-  const followingCount = userData.following ? userData.following.length : 0;
+  selectors.closeSettingsModal.addEventListener('click', () => {
+    selectors.settingsModal.style.display = 'none';
+  });
 
-  followersCountElement.textContent = `${followersCount} followers`;
-  followingCountElement.textContent = `${followingCount} following`;
+  selectors.saveSettingsButton.addEventListener('click', saveSettings);
+
+  window.addEventListener('click', event => {
+    if (event.target === selectors.uploadModal) {
+      selectors.uploadModal.style.display = 'none';
+    }
+    if (event.target === selectors.settingsModal) {
+      selectors.settingsModal.style.display = 'none';
+    }
+  });
+
+async function updateProfile(newUsername, newBio, newProfilePicture) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) throw new Error("No user is signed in");
+
+  const userRef = db.collection("users").doc(currentUser.uid);
+  const profileUpdatePromises = [];
+
+  if (newProfilePicture) {
+    const url = await uploadFile(newProfilePicture);
+    profileUpdatePromises.push(userRef.update({ avatarUrl: url }));
+  }
+
+  if (newUsername) profileUpdatePromises.push(userRef.update({ username: newUsername }));
+  if (newBio) profileUpdatePromises.push(userRef.update({ bio: newBio }));
+
+  await Promise.all(profileUpdatePromises);
+
+  updateUI(selectors.username, newUsername);
+  updateUI(selectors.bio, newBio);
+  selectors.avatar.src = newProfilePicture ? await uploadFile(newProfilePicture) : selectors.avatar.src;
+
+  selectors.editProfileSection.style.display = "none";
+  selectors.editProfileButton.style.display = "inline-block";
 }
 
-function setupFollowButton(currentUser, targetUserId, targetUserData) {
-  const followButton = document.getElementById("followButton");
+function updateFollowCounts(userData) {
+  updateUI(selectors.followersCount, userData.followers ? userData.followers.length : 0);
+  updateUI(selectors.followingCount, userData.following ? userData.following.length : 0);
+}
 
-  // Check if the current user is already following the target user
-  const isFollowing = targetUserData.followers && targetUserData.followers.includes(currentUser.uid);
-  updateFollowButtonState(followButton, isFollowing);
+async function setupFollowButton(currentUser, uid, userData) {
+  const isFollowing = userData.followers && userData.followers.includes(currentUser.uid);
+  selectors.followButton.textContent = isFollowing ? "Unfollow" : "Follow";
 
-  followButton.addEventListener("click", () => {
-    const isCurrentlyFollowing = followButton.classList.contains("following");
-    const currentUserRef = db.collection("users").doc(currentUser.uid);
-    const targetUserRef = db.collection("users").doc(targetUserId);
+  selectors.followButton.addEventListener("click", async () => {
+    try {
+      if (isFollowing) {
+        await unfollowUser(currentUser.uid, uid);
+      } else {
+        await followUser(currentUser.uid, uid);
+      }
 
-    db.runTransaction((transaction) => {
-      return Promise.all([
-        transaction.get(currentUserRef),
-        transaction.get(targetUserRef),
-      ]).then(([currentUserDoc, targetUserDoc]) => {
-        if (!currentUserDoc.exists || !targetUserDoc.exists) {
-          throw "Document does not exist!";
-        }
-
-        const currentUserData = currentUserDoc.data();
-        const updatedTargetUserData = targetUserDoc.data();
-
-        if (isCurrentlyFollowing) {
-          // Unfollow
-          updatedTargetUserData.followers = (updatedTargetUserData.followers || []).filter(id => id !== currentUser.uid);
-          currentUserData.following = (currentUserData.following || []).filter(id => id !== targetUserId);
-        } else {
-          // Follow
-          updatedTargetUserData.followers = [...(updatedTargetUserData.followers || []), currentUser.uid];
-          currentUserData.following = [...(currentUserData.following || []), targetUserId];
-        }
-
-        transaction.update(targetUserRef, {
-          followers: updatedTargetUserData.followers,
-        });
-        transaction.update(currentUserRef, {
-          following: currentUserData.following,
-        });
-
-        return updatedTargetUserData;
-      });
-    })
-    .then((updatedTargetUserData) => {
-      updateFollowButtonState(followButton, !isCurrentlyFollowing);
-      updateFollowCounts(updatedTargetUserData);
-    })
-    .catch((error) => {
-      console.error("Error updating follow status: ", error);
-    });
+      updateFollowCounts(userData);
+      selectors.followButton.textContent = isFollowing ? "Follow" : "Unfollow";
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+    }
   });
 }
 
-function updateFollowButtonState(button, isFollowing) {
-  if (isFollowing) {
-    button.textContent = "Following";
-    button.classList.add("following");
-  } else {
-    button.textContent = "Follow";
-    button.classList.remove("following");
-  }
-}
+async function followUser(currentUserUid, userUid) {
+  const userRef = db.collection("users").doc(userUid);
+  const currentUserRef = db.collection("users").doc(currentUserUid);
 
-function updateProfile(newUsername, newBio, newProfilePicture) {
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    alert("No user is signed in.");
-    return;
-  }
+  try {
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      const currentUserDoc = await transaction.get(currentUserRef);
 
-  const userRef = db.collection("users").doc(currentUser.uid);
-
-  let profileUpdatePromises = [];
-
-  if (newProfilePicture) {
-    const storageRef = storage.ref();
-    const fileRef = storageRef.child('avatars/' + newProfilePicture.name);
-
-    profileUpdatePromises.push(
-      fileRef.put(newProfilePicture).then((snapshot) => {
-        return snapshot.ref.getDownloadURL();
-      }).then((url) => {
-        return userRef.update({
-          avatarUrl: url
-        });
-      })
-    );
-  }
-
-  if (newUsername) {
-    profileUpdatePromises.push(userRef.update({
-      username: newUsername
-    }));
-  }
-
-  if (newBio) {
-    profileUpdatePromises.push(userRef.update({
-      bio: newBio
-    }));
-  }
-
-  Promise.all(profileUpdatePromises)
-    .then(() => {
-      console.log('Profile updated successfully');
-      // Update UI
-      usernameElement.textContent = newUsername;
-      bioElement.textContent = newBio;
-
-      // Hide edit profile section
-      editProfileSection.style.display = 'none';
-      editProfileButton.style.display = 'inline-block';
-    })
-    .catch((error) => {
-      console.error('Error updating profile:', error);
-    });
-}
-
-function loadUserPosts(uid) {
-  const postsContainer = document.getElementById("postsContainer");
-
-  // Clear existing posts
-  postsContainer.innerHTML = '';
-
-  db.collection("users").doc(uid).collection("posts")
-    .orderBy("timestamp", "desc")
-    .get()
-    .then((querySnapshot) => {
-      if (querySnapshot.empty) {
-        postsContainer.innerHTML = "<p>No posts yet.</p>";
-      } else {
-        const postPromises = [];
-
-        querySnapshot.forEach((doc) => {
-          const postData = doc.data();
-          const postId = doc.id;
-
-          // Fetch username of the post author
-          postPromises.push(
-            db.collection("users").doc(uid).get().then((userDoc) => {
-              const authorUsername = userDoc.exists ? userDoc.data().username : "Unknown";
-
-              return {
-                postId: postId,
-                postData: postData,
-                authorUsername: authorUsername
-              };
-            })
-          );
-        });
-
-        // After fetching all author usernames, create and append post elements
-        Promise.all(postPromises).then((posts) => {
-          posts.forEach(({ postId, postData, authorUsername }) => {
-            const postElement = createPostElement(postData, postId, authorUsername);
-            postsContainer.appendChild(postElement);
-          });
-        }).catch((error) => {
-          console.error("Error fetching author usernames: ", error);
-          postsContainer.innerHTML = "<p>Error loading posts. Please try again later.</p>";
-        });
+      if (!userDoc.exists || !currentUserDoc.exists) {
+        throw new Error('User does not exist.');
       }
-    })
-    .catch((error) => {
-      console.error("Error loading posts: ", error);
-      postsContainer.innerHTML = "<p>Error loading posts. Please try again later.</p>";
+
+      const userData = userDoc.data();
+      const currentUserData = currentUserDoc.data();
+
+      // Update followers list
+      if (!userData.followers.includes(currentUserUid)) {
+        const newFollowers = [...userData.followers, currentUserUid];
+        transaction.update(userRef, { followers: newFollowers });
+      }
+
+      // Update following list
+      if (!currentUserData.following.includes(userUid)) {
+        const newFollowing = [...currentUserData.following, userUid];
+        transaction.update(currentUserRef, { following: newFollowing });
+      }
     });
+
+    // Reload the page after following
+    window.location.reload();
+
+  } catch (error) {
+    console.error('Error following user:', error);
+  }
 }
 
-function createPostElement(postData, postId, authorUsername) {
+async function unfollowUser(currentUserUid, userUid) {
+  const userRef = db.collection("users").doc(userUid);
+  const currentUserRef = db.collection("users").doc(currentUserUid);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      const currentUserDoc = await transaction.get(currentUserRef);
+
+      if (!userDoc.exists || !currentUserDoc.exists) {
+        throw new Error('User does not exist.');
+      }
+
+      const userData = userDoc.data();
+      const currentUserData = currentUserDoc.data();
+
+      // Update followers list
+      const newFollowers = userData.followers.filter(uid => uid !== currentUserUid);
+      if (newFollowers.length !== userData.followers.length) {
+        transaction.update(userRef, { followers: newFollowers });
+      }
+
+      // Update following list
+      const newFollowing = currentUserData.following.filter(uid => uid !== userUid);
+      if (newFollowing.length !== currentUserData.following.length) {
+        transaction.update(currentUserRef, { following: newFollowing });
+      }
+    });
+
+    // Reload the page after unfollowing
+    window.location.reload();
+
+  } catch (error) {
+    console.error('Error unfollowing user:', error);
+  }
+}
+
+async function loadSettings() {
+  try {
+    const currentUser = await getCurrentUser();
+    if (currentUser) {
+      // Load current settings
+      const settings = await db.collection("settings").doc(currentUser.uid).get();
+      if (settings.exists) {
+        const settingsData = settings.data();
+        selectors.darkModeToggle.checked = settingsData.darkMode || false;
+        selectors.notificationsToggle.checked = settingsData.notifications || false;
+        selectors.languageSelect.value = settingsData.language || 'en';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+}
+
+async function saveSettings() {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) throw new Error("No user is signed in");
+
+    const darkMode = selectors.darkModeToggle.checked;
+    const notifications = selectors.notificationsToggle.checked;
+    const language = selectors.languageSelect.value;
+
+    await db.collection("settings").doc(currentUser.uid).set({
+      darkMode,
+      notifications,
+      language
+    });
+
+    console.log('Settings saved successfully.');
+    selectors.settingsModal.style.display = 'none';
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
+}
+
+async function loadUserPosts(uid) {
+  console.log('Clearing posts container...');
+  selectors.postsContainer.innerHTML = ''; // Clear the container
+
+  try {
+    console.log('Fetching posts from Firestore...');
+    const querySnapshot = await db.collection("users").doc(uid).collection("posts").orderBy("timestamp", "desc").get();
+    if (querySnapshot.empty) {
+      selectors.postsContainer.innerHTML = "<p>No posts yet.</p>";
+      return [];
+    }
+
+    console.log(`Found ${querySnapshot.docs.length} posts.`);
+    const posts = await Promise.all(querySnapshot.docs.map(async (doc) => {
+      const postData = doc.data();
+      const postId = doc.id;
+      const authorUsername = (await db.collection("users").doc(uid).get()).data().username || "Unknown";
+      return { data: postData, id: postId, authorUsername: authorUsername };
+    }));
+
+    posts.forEach(post => {
+      const postElement = createPostElement(post.data, post.id, post.authorUsername, uid);
+      selectors.postsContainer.appendChild(postElement);
+    });
+
+    return posts;
+
+  } catch (error) {
+    console.error("Error loading posts:", error);
+    selectors.postsContainer.innerHTML = "<p>Error loading posts. Please try again later.</p>";
+    return [];
+  }
+}
+
+function createPostElement(postData, postId, authorUsername, uid) {
   const postElement = document.createElement("div");
   postElement.classList.add("post");
 
-  // Post image
   const postImage = document.createElement("img");
   postImage.src = postData.url;
   postImage.alt = postData.caption;
   postImage.classList.add("post-image");
 
-  // Post caption
   const postCaption = document.createElement("p");
   postCaption.textContent = `${authorUsername}: ${postData.caption}`;
   postCaption.classList.add("post-caption");
 
-  // Actions (like button, share button, etc.)
   const postActions = document.createElement("div");
   postActions.classList.add("post-actions");
 
-  // Add any action buttons here if needed
-  // Example: like button
   const likeButton = document.createElement("button");
-  likeButton.textContent = "Like";
-  postActions.appendChild(likeButton);
+  likeButton.textContent = `Like (${postData.likes ? postData.likes.length : 0})`;
+  likeButton.classList.add("like-button");
 
+  // Determine if the current user has liked this post
+  getCurrentUser().then(currentUser => {
+    if (currentUser) {
+      likeButton.classList.toggle("liked", postData.likes.includes(currentUser.uid));
+    }
+  }).catch(error => {
+    console.error('Error getting current user:', error);
+  });
+
+  likeButton.addEventListener("click", async () => {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      alert('You must be logged in to like posts.');
+      return;
+    }
+
+    try {
+      await toggleLike(currentUser.uid, postId, postData.likes || [], uid);
+      const updatedPostData = (await db.collection("users").doc(uid).collection("posts").doc(postId).get()).data();
+      updateLikeButton(likeButton, updatedPostData.likes || []);
+    } catch (error) {
+      console.error('Error liking/unliking post:', error);
+    }
+  });
+
+  postActions.appendChild(likeButton);
   postElement.appendChild(postImage);
   postElement.appendChild(postCaption);
   postElement.appendChild(postActions);
 
   return postElement;
+}
+
+async function toggleLike(userId, postId, currentLikes, userCollection) {
+  const postRef = db.collection("users").doc(userCollection).collection("posts").doc(postId);
+
+  try {
+    const postExists = await checkPostInFirestore(userCollection, postId);
+    if (!postExists) {
+      throw new Error(`Post with ID ${postId} does not exist.`);
+    }
+
+    await db.runTransaction(async (transaction) => {
+      const postDoc = await transaction.get(postRef);
+      if (!postDoc.exists) {
+        throw new Error(`Post with ID ${postId} does not exist.`);
+      }
+
+      const postData = postDoc.data();
+      const likes = postData.likes || [];
+      if (likes.includes(userId)) {
+        // Unlike the post
+        transaction.update(postRef, { likes: likes.filter(id => id !== userId) });
+      } else {
+        // Like the post
+        transaction.update(postRef, { likes: [...likes, userId] });
+      }
+    });
+  } catch (error) {
+    console.error('Error toggling like:', error);
+  }
+}
+
+function updateLikeButton(likeButton, likes) {
+  likeButton.textContent = `Like (${likes.length})`;
+  getCurrentUser().then(currentUser => {
+    if (currentUser) {
+      likeButton.classList.toggle("liked", likes.includes(currentUser.uid));
+    }
+  });
+}
+
+async function checkPostInFirestore(userCollection, postId) {
+  try {
+    const postDoc = await db.collection("users").doc(userCollection).collection("posts").doc(postId).get();
+    return postDoc.exists;
+  } catch (error) {
+    console.error('Error checking post existence:', error);
+    return false;
+  }
 }
